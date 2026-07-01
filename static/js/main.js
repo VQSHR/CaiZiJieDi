@@ -6,6 +6,7 @@ let mySid = '';
 let currentRoom = '';
 let gameState = null;
 let amIHost = false;
+let myHiddenWord = '';
 
 const PLAYER_COLORS = ['#B22222', '#2C5F8A', '#3A7D5E', '#8B6914', '#6B3FA0', '#C75B39'];
 
@@ -93,6 +94,7 @@ socket.on('room_joined', (data) => {
 });
 
 socket.on('private_info', (data) => {
+    myHiddenWord = data.hidden_word;
     document.getElementById('my-hidden-word').innerText = data.hidden_word;
 });
 
@@ -120,6 +122,9 @@ socket.on('update_state', (data) => {
 
         document.getElementById('btn-start-game').style.display = amIHost ? 'inline-block' : 'none';
         
+        // Reset state
+        myHiddenWord = '';
+        document.getElementById('my-hidden-word').innerText = '';
         // Reset inputs
         document.getElementById('hint1-input').value = '';
         document.getElementById('hint2-input').value = '';
@@ -159,26 +164,65 @@ socket.on('update_state', (data) => {
         // Render guesses UI
         const container = document.getElementById('guesses-container');
         container.innerHTML = '';
-        
+
+        // Show own hints and hidden word first
+        if (me) {
+            const myIdx = data.players.findIndex(p => p.sid === mySid);
+            const myColor = PLAYER_COLORS[myIdx % PLAYER_COLORS.length];
+            const selfDiv = document.createElement('div');
+            selfDiv.className = 'guess-row';
+            selfDiv.style.setProperty('--player-color', myColor);
+            selfDiv.innerHTML = `
+                <p style="color: ${myColor}; margin-bottom: 10px; font-size: 1.1rem;">你的出题</p>
+                <div class="result-two-col">
+                    <div class="result-col">
+                        <div class="guess-col-header">提示字</div>
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
+                                <span style="font-size: 2.5rem; line-height: 70px;">${me.hints[0]}</span>
+                            </div>
+                            <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
+                                <span style="font-size: 2.5rem; line-height: 70px;">${me.hints[1]}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="result-col">
+                        <div class="guess-col-header">隐藏字</div>
+                        <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
+                            <span style="font-size: 2.5rem; line-height: 70px;">${myHiddenWord}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(selfDiv);
+        }
+
         data.players.forEach((p, idx) => {
             if (p.sid === mySid) return; // Don't guess self
             const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
-            
+
             const div = document.createElement('div');
             div.className = 'guess-row';
             div.style.setProperty('--player-color', pColor);
             div.innerHTML = `
-                <p style="color: var(--player-color); margin-bottom: 10px;">玩家 <strong>${p.name}</strong> 的提示字：</p>
-                <div class="mi-zi-ge-container" style="justify-content: flex-start; gap: 1rem;">
-                    <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                        <span style="font-size: 2.5rem; line-height: 70px;">${p.hints[0]}</span>
+                <p style="color: ${pColor}; margin-bottom: 10px; font-size: 1.1rem;">玩家 ${p.name}</p>
+                <div class="result-two-col">
+                    <div class="result-col">
+                        <div class="guess-col-header">提示字</div>
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
+                                <span style="font-size: 2.5rem; line-height: 70px;">${p.hints[0]}</span>
+                            </div>
+                            <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
+                                <span style="font-size: 2.5rem; line-height: 70px;">${p.hints[1]}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                        <span style="font-size: 2.5rem; line-height: 70px;">${p.hints[1]}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; font-size: 2rem; color: #666; margin: 0 10px;">➜</div>
-                    <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                        <input type="text" data-target="${p.sid}" maxlength="1" class="guess-input" autocomplete="off" style="font-size: 2.5rem; line-height: 70px;">
+                    <div class="result-col">
+                        <div class="guess-col-header">隐藏字</div>
+                        <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
+                            <input type="text" data-target="${p.sid}" maxlength="1" class="guess-input" autocomplete="off" style="font-size: 2.5rem; line-height: 70px;">
+                        </div>
                     </div>
                 </div>
             `;
@@ -211,64 +255,86 @@ socket.on('update_state', (data) => {
             const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
             const isCenterCorrect = p.center_guess === data.center_word;
 
-            let guessesHtml = '';
+            // Build guesses rows (label above, then two-col aligned chars)
+            let guessRows = '';
             Object.entries(p.guesses).forEach(([targetSid, guess]) => {
                 const target = data.players.find(tp => tp.sid === targetSid);
                 if (!target) return;
                 const isHit = guess === target.hidden_word;
-                guessesHtml += `
-                    <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 8px;">
-                        <span style="font-size: 0.9rem; color: var(--text-light); min-width: 90px;">猜 ${target.name} ${isHit ? '<span style="color:#4CAF50">✓</span>' : '<span style="color:#F44336">✗</span>'}</span>
-                        <div class="mi-zi-ge-wrapper" style="width: 60px; height: 60px;">
-                            <span style="font-size: 2.2rem; line-height: 60px;">${guess}</span>
-                        </div>
-                        <span style="color: #999; font-size: 1.3rem;">➜</span>
-                        <div class="mi-zi-ge-wrapper" style="width: 60px; height: 60px;">
-                            <span style="font-size: 2.2rem; line-height: 60px;">${target.hidden_word}</span>
+                guessRows += `
+                    <div class="result-guess-group">
+                        <div class="result-guess-label">猜 ${target.name} ${isHit ? '<span style="color:#4CAF50">✓</span>' : '<span style="color:#F44336">✗</span>'}</div>
+                        <div class="result-two-col">
+                            <div class="result-col">
+                                <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                                    <span style="font-size: 2rem; line-height: 56px;">${guess}</span>
+                                </div>
+                            </div>
+                            <div class="result-col">
+                                <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                                    <span style="font-size: 2rem; line-height: 56px;">${target.hidden_word}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
             });
 
+            // Center guess row
+            guessRows += `
+                <div class="result-guess-group">
+                    <div class="result-guess-label">猜中心字 ${isCenterCorrect ? '<span style="color:#4CAF50">✓ 正确</span>' : '<span style="color:#F44336">✗ 错误</span>'}</div>
+                    <div class="result-two-col">
+                        <div class="result-col">
+                            <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                                <span style="font-size: 2rem; line-height: 56px;">${p.center_guess}</span>
+                            </div>
+                        </div>
+                        <div class="result-col">
+                            <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                                <span style="font-size: 2rem; line-height: 56px;">${data.center_word}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
             const div = document.createElement('div');
             div.className = 'result-item';
             div.style.setProperty('--player-color', pColor);
             div.innerHTML = `
-                <h4 style="color: ${pColor};"><span>${p.name}</span><span class="score">总分: ${p.score}</span></h4>
-                <div class="mi-zi-ge-container" style="justify-content: flex-start; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 12px;">
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                            <span style="font-size: 2.5rem; line-height: 70px;">${p.hidden_word}</span>
+                <div class="result-player-name" style="color: ${pColor}; font-size: 1.3rem; font-weight: bold; margin-bottom: 12px;">
+                    玩家：${p.name}<span class="score">${p.score}分</span>
+                </div>
+                <div class="result-two-col">
+                    <div class="result-col">
+                        <div class="result-col-header">提示字</div>
+                        <div style="display: flex; gap: 8px;">
+                            <div class="mi-zi-ge-wrapper" style="width: 64px; height: 64px;">
+                                <span style="font-size: 2.2rem; line-height: 64px;">${p.hints[0]}</span>
+                            </div>
+                            <div class="mi-zi-ge-wrapper" style="width: 64px; height: 64px;">
+                                <span style="font-size: 2.2rem; line-height: 64px;">${p.hints[1]}</span>
+                            </div>
                         </div>
-                        <span style="font-size: 0.75rem; color: var(--text-light);">隐藏字</span>
                     </div>
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                            <span style="font-size: 2.5rem; line-height: 70px;">${p.hints[0]}</span>
+                    <div class="result-col">
+                        <div class="result-col-header">隐藏字</div>
+                        <div class="mi-zi-ge-wrapper" style="width: 64px; height: 64px;">
+                            <span style="font-size: 2.2rem; line-height: 64px;">${p.hidden_word}</span>
                         </div>
-                        <span style="font-size: 0.75rem; color: var(--text-light);">提示</span>
-                    </div>
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                            <span style="font-size: 2.5rem; line-height: 70px;">${p.hints[1]}</span>
-                        </div>
-                        <span style="font-size: 0.75rem; color: var(--text-light);">提示</span>
                     </div>
                 </div>
-                <p style="margin-bottom: 8px;">猜隐藏字</p>
-                <div style="margin-bottom: 4px;">
-                    ${guessesHtml || '<p style="color: var(--text-light); font-size: 0.9rem;">无</p>'}
-                </div>
-                <p style="margin-bottom: 8px;">猜中心字 ${isCenterCorrect ? '<span style="color:#4CAF50">✓ 正确</span>' : '<span style="color:#F44336">✗ 错误</span>'}</p>
-                <div class="mi-zi-ge-container" style="justify-content: flex-start; gap: 0.8rem;">
-                    <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                        <span style="font-size: 2.5rem; line-height: 70px;">${p.center_guess}</span>
+                <div class="result-divider"></div>
+                <div class="result-two-col result-guess-header">
+                    <div class="result-col">
+                        <div class="result-col-header">猜测</div>
                     </div>
-                    <span style="color: #999; font-size: 1.3rem;">➜</span>
-                    <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                        <span style="font-size: 2.5rem; line-height: 70px;">${data.center_word}</span>
+                    <div class="result-col">
+                        <div class="result-col-header">正确答案</div>
                     </div>
                 </div>
+                ${guessRows || '<p style="color: var(--text-light); font-size: 0.9rem; padding: 4px 0;">无</p>'}
             `;
             container.appendChild(div);
         });

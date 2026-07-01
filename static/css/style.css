@@ -280,6 +280,11 @@ button {
 
 .guess-row p { margin-bottom: 0.5rem; color: var(--ink); }
 .guess-row input { width: 100%; }
+.guess-col-header {
+    font-size: 1rem;
+    color: var(--text-light);
+    margin-bottom: 6px;
+}
 
 .center-guess-container {
     margin: 1.5rem 0;
@@ -304,9 +309,42 @@ button {
     margin-bottom: 0.5rem;
     border-left: 4px solid var(--ink);
 }
-.result-item span.score {
-    float: right;
+.result-player-name {
+    display: flex;
+    align-items: center;
+}
+.result-player-name .score {
+    margin-left: auto;
     color: var(--ink);
     font-weight: bold;
     font-size: 1.2rem;
+}
+.result-divider {
+    border: none;
+    border-top: 1px dashed #CCC;
+    margin: 10px 0;
+}
+.result-two-col {
+    display: flex;
+    gap: 1rem;
+}
+.result-col {
+    flex: 1;
+    min-width: 0;
+}
+.result-col-header {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-bottom: 6px;
+}
+.result-guess-header {
+    margin-bottom: 6px;
+}
+.result-guess-group {
+    margin-bottom: 8px;
+}
+.result-guess-label {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 4px;
 }
