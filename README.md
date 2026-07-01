@@ -1,0 +1,96 @@
+# 猜字解底联机版
+
+一个基于 Flask + Flask-SocketIO 的多人联机文字推理小游戏。
+
+玩家在同一房间内进行多回合对局：
+- 每人会拿到一个隐藏字
+- 每人提交两个提示字
+- 所有人根据提示猜他人的隐藏字，并额外猜中心字
+- 按规则累计积分，支持再来一局
+
+项目入口：
+- 服务端入口：[app.py](app.py)
+- 前端页面：[templates/index.html](templates/index.html)
+- 前端逻辑：[static/js/main.js](static/js/main.js)
+
+## 功能特性
+
+- 实时房间系统（创建、加入、离开）
+- 房主机制与准备机制
+- 四阶段流程：大厅、出题、猜测、结算
+- 回合积分累计
+- 房间号使用成语词库生成
+- 单页面前端交互，Socket.IO 实时同步状态
+
+## 游戏流程
+
+1. 输入昵称进入大厅
+2. 创建房间或输入房间名加入
+3. 大厅阶段所有玩家准备，房主可开始游戏
+4. 出题阶段每位玩家提交两个提示字
+5. 猜测阶段猜他人隐藏字并猜中心字
+6. 结算阶段展示答案与分数，房主可再来一局
+
+## 本地开发启动
+
+### 环境要求
+
+- Python 3.10+
+- pip
+
+### 安装依赖
+
+python -m pip install -r requirements.txt
+
+如果你还没有 requirements 文件对应依赖，也可直接安装：
+
+python -m pip install flask flask-socketio
+
+### 启动项目
+
+python app.py
+
+默认访问地址：
+- http://127.0.0.1:5000
+
+## 环境变量
+
+可通过 .env 或系统环境变量配置：
+
+- SECRET_KEY：Flask 密钥，生产环境必须替换
+- PORT：服务监听端口，默认 5000
+- FLASK_DEBUG：是否开启调试模式，默认 false
+
+示例参考：[.env.example](.env.example)
+
+## 生产部署
+
+已经提供完整生产部署资源：
+
+- 详细文档：[DEPLOY.md](DEPLOY.md)
+- Docker 文件：[Dockerfile](Dockerfile)
+- Compose 文件：[docker-compose.yml](docker-compose.yml)
+- Gunicorn 配置：[gunicorn.conf.py](gunicorn.conf.py)
+- systemd 模板：[deploy/caizijiedi.service](deploy/caizijiedi.service)
+- Nginx 模板：[deploy/nginx.conf](deploy/nginx.conf)
+
+## 项目结构
+
+- [app.py](app.py)：Flask 路由与 Socket.IO 事件入口
+- [room.py](room.py)：房间状态机与计分逻辑
+- [templates/index.html](templates/index.html)：主页面模板
+- [static/js/main.js](static/js/main.js)：前端事件与渲染逻辑
+- [static/css/style.css](static/css/style.css)：页面样式
+- [words.json](words.json)：中心字与隐藏字词库
+- [idioms.json](idioms.json)：房间名成语词库
+- [process_hsk.py](process_hsk.py)：词库处理脚本
+
+## 注意事项
+
+- 当前房间状态保存在进程内存中，单实例部署最简单
+- 若需要水平扩容，多实例场景建议引入 Redis 消息队列和会话粘性
+- 生产环境不要直接暴露 Flask 开发服务器，建议使用 Gunicorn + Nginx
+
+## License
+
+如需开源发布，请补充 License 文件并在此处声明。

@@ -22,8 +22,8 @@ body {
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center;
-    overflow: hidden;
+    align-items: safe center;
+    overflow-x: hidden;
     position: relative;
 }
 

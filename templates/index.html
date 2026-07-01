@@ -100,7 +100,12 @@
             <div id="phase-result" class="phase-panel" style="display:none;">
                 <h2>回合结算</h2>
                 <div class="center-word-display">
-                    <p>本局中心字：<span id="result-center-word" class="word-highlight"></span></p>
+                    <p style="margin-bottom: 15px;">本局中心字</p>
+                    <div class="mi-zi-ge-container">
+                        <div class="mi-zi-ge-wrapper" style="--grid-color: var(--seal-red);">
+                            <span id="result-center-word"></span>
+                        </div>
+                    </div>
                 </div>
                 <div id="result-container" class="result-list"></div>
                 <button id="btn-restart-game" class="btn-primary" style="display:none;">再来一局</button>

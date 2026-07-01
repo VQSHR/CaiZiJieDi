@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, join_room, leave_room, emit
+import os
 import random
 import string
 import json
 from room import Room
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-only-secret-change-me')
 socketio = SocketIO(app)
 
 rooms = {} # room_code -> Room instance
@@ -128,4 +129,6 @@ def on_restart_game():
             emit('update_state', room.get_public_state(), to=room_code)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
+    port = int(os.getenv('PORT', '5000'))
+    socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
