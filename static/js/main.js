@@ -129,7 +129,13 @@ function renderPlayers(players) {
         const idx = colorIndex[p.id];
         const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
         if (p.id === myClientId && p.is_host) amIHost = true;
-        
+
+        let statusTag = '';
+        const st = gameState && gameState.state;
+        if (st === 'LOBBY' && p.is_ready) statusTag = '<span style="color:#2D7D3F;">准备</span>';
+        else if (st === 'HINT_PHASE' && p.has_hints) statusTag = '<span style="color:#2D7D3F;">已提交</span>';
+        else if (st === 'GUESS_PHASE' && p.has_guesses) statusTag = '<span style="color:#2D7D3F;">已提交</span>';
+
         const tag = document.createElement('div');
         tag.className = 'player-tag';
         tag.style.setProperty('--player-color', pColor);
@@ -141,7 +147,7 @@ function renderPlayers(players) {
             <span style="color: ${pColor}; font-weight: bold;">${p.name}</span>
             ${p.is_host ? '<span style="color: var(--ink); border: 1px solid var(--ink); padding: 0 6px; border-radius: 3px; font-size: 0.75rem; margin-left: 6px;">房主</span>' : ''}
             <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-light);">
-                ${p.is_ready ? '<span style="color:#2D7D3F;">准备</span>' : ''}
+                ${statusTag}
                 <span>${p.score}分</span>
             </span>
         `;
