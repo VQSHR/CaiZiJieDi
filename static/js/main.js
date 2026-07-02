@@ -1,12 +1,37 @@
 const socket = io();
 
+// Stable client id (survives refresh / reconnect)
+let myClientId = sessionStorage.getItem('caizijiedi_cid');
+if (!myClientId) {
+    myClientId = (crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    sessionStorage.setItem('caizijiedi_cid', myClientId);
+}
+
 // State
 let myName = '';
 let mySid = '';
 let currentRoom = '';
+let pendingRoom = '';   // room to rejoin after connect (restored from saved session)
 let gameState = null;
 let amIHost = false;
 let myHiddenWord = '';
+let myGuesses = {};
+let myCenterGuess = '';
+
+// Restore session so a page refresh can rejoin automatically
+try {
+    const sess = JSON.parse(sessionStorage.getItem('caizijiedi_session') || '{}');
+    if (sess.name && sess.room_code) {
+        myName = sess.name;
+        pendingRoom = sess.room_code;
+        console.log('[GC] session restored:', sess.name, sess.room_code, 'cid=', myClientId ? myClientId.slice(0,8) : null);
+    } else {
+        console.log('[GC] no saved session');
+    }
+} catch (e) {
+    console.log('[GC] session restore error:', e);
+}
 
 const PLAYER_COLORS = ['#B22222', '#2C5F8A', '#3A7D5E', '#8B6914', '#6B3FA0', '#C75B39'];
 
@@ -36,6 +61,18 @@ function showMessage(msg, duration = 3000) {
             el.textContent = '';
         }, duration);
     }
+}
+function hideMessage() {
+    const el = document.getElementById('app-message');
+    el.style.display = 'none';
+    el.textContent = '';
+    clearTimeout(messageTimer);
+}
+
+if (pendingRoom) {
+    // Hide login view while we attempt to rejoin the saved room
+    document.getElementById('login-view').classList.remove('active');
+    showMessage('正在重连房间…', 0);
 }
 
 // Switch active view
@@ -71,7 +108,7 @@ function renderPlayers(players) {
     
     players.forEach((p, idx) => {
         const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
-        if (p.sid === mySid && p.is_host) amIHost = true;
+        if (p.id === myClientId && p.is_host) amIHost = true;
         
         const tag = document.createElement('div');
         tag.className = 'player-tag';
@@ -95,21 +132,50 @@ function renderPlayers(players) {
 // Socket Events
 socket.on('connect', () => {
     mySid = socket.id;
+    // Auto-(re)join if we have a room we belong to
+    const room = currentRoom || pendingRoom;
+    console.log('[GC] connect; room to rejoin=', room, 'name=', myName);
+    if (room && myName) {
+        socket.emit('join_room', { name: myName, room_code: room, client_id: myClientId });
+    }
 });
 
 socket.on('error', (data) => {
+    console.log('[GC] server error:', data.msg);
     showMessage(data.msg);
+    // Room no longer exists (e.g. cleaned up after everyone left): back to login
+    if (data.msg && data.msg.indexOf('不存在') !== -1) {
+        sessionStorage.removeItem('caizijiedi_session');
+        pendingRoom = '';
+        currentRoom = '';
+        hideMessage();
+        switchView('login');
+    }
 });
 
 socket.on('room_joined', (data) => {
+    console.log('[GC] room_joined:', data.room_code);
     currentRoom = data.room_code;
+    pendingRoom = '';
+    sessionStorage.setItem('caizijiedi_session', JSON.stringify({ name: myName, room_code: currentRoom }));
+    hideMessage();
     document.getElementById('display-room-code').innerText = currentRoom;
     switchView('game');
 });
 
 socket.on('private_info', (data) => {
+    console.log('[GC] private_info:', data);
     myHiddenWord = data.hidden_word;
     document.getElementById('my-hidden-word').innerText = data.hidden_word;
+    if (data.hints) {
+        document.getElementById('hint1-input').value = data.hints[0] || '';
+        document.getElementById('hint2-input').value = data.hints[1] || '';
+    }
+    myGuesses = data.guesses || {};
+    myCenterGuess = data.center_guess || '';
+    if (myCenterGuess) {
+        document.getElementById('center-guess-input').value = myCenterGuess;
+    }
 });
 
 socket.on('update_state', (data) => {
@@ -125,7 +191,7 @@ socket.on('update_state', (data) => {
         document.getElementById('total-count').innerText = data.players.length;
         
         document.getElementById('btn-toggle-ready').style.display = 'inline-block';
-        const me = data.players.find(p => p.sid === mySid);
+        const me = data.players.find(p => p.id === myClientId);
         if (me && me.is_ready) {
             document.getElementById('btn-toggle-ready').innerText = '取消准备';
             document.getElementById('btn-toggle-ready').classList.replace('btn-secondary', 'btn-primary');
@@ -138,6 +204,8 @@ socket.on('update_state', (data) => {
         
         // Reset state
         myHiddenWord = '';
+        myGuesses = {};
+        myCenterGuess = '';
         document.getElementById('my-hidden-word').innerText = '';
         // Reset inputs
         document.getElementById('hint1-input').value = '';
@@ -156,7 +224,7 @@ socket.on('update_state', (data) => {
     
     // HINT PHASE
     if (data.state === 'HINT_PHASE') {
-        const me = data.players.find(p => p.sid === mySid);
+        const me = data.players.find(p => p.id === myClientId);
         if (me && me.has_hints) {
             document.getElementById('btn-submit-hints').style.display = 'none';
             document.getElementById('hint-wait-msg').style.display = 'block';
@@ -167,7 +235,7 @@ socket.on('update_state', (data) => {
     
     // GUESS PHASE
     if (data.state === 'GUESS_PHASE') {
-        const me = data.players.find(p => p.sid === mySid);
+        const me = data.players.find(p => p.id === myClientId);
 
         // Preserve in-progress guess values before re-render
         const savedGuesses = {};
@@ -181,7 +249,7 @@ socket.on('update_state', (data) => {
 
         // Show own hints and hidden word first
         if (me) {
-            const myIdx = data.players.findIndex(p => p.sid === mySid);
+            const myIdx = data.players.findIndex(p => p.id === myClientId);
             const myColor = PLAYER_COLORS[myIdx % PLAYER_COLORS.length];
             const selfDiv = document.createElement('div');
             selfDiv.className = 'guess-row';
@@ -212,7 +280,7 @@ socket.on('update_state', (data) => {
         }
 
         data.players.forEach((p, idx) => {
-            if (p.sid === mySid) return; // Don't guess self
+            if (p.id === myClientId) return; // Don't guess self
             const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
 
             const div = document.createElement('div');
@@ -235,7 +303,7 @@ socket.on('update_state', (data) => {
                     <div class="result-col">
                         <div class="guess-col-header">隐藏字</div>
                         <div class="mi-zi-ge-wrapper" style="width: 70px; height: 70px;">
-                            <input type="text" data-target="${p.sid}" maxlength="1" class="guess-input" autocomplete="off" style="font-size: 2.5rem; line-height: 70px;">
+                            <input type="text" data-target="${p.id}" maxlength="1" class="guess-input" autocomplete="off" style="font-size: 2.5rem; line-height: 70px;">
                         </div>
                     </div>
                 </div>
@@ -243,12 +311,18 @@ socket.on('update_state', (data) => {
             container.appendChild(div);
         });
 
-        // Restore preserved values
+        // Restore preserved values (in-progress typing, or submitted on reconnect)
         document.querySelectorAll('.guess-input').forEach(input => {
-            if (savedGuesses[input.dataset.target] !== undefined) {
-                input.value = savedGuesses[input.dataset.target];
+            const t = input.dataset.target;
+            if (savedGuesses[t] !== undefined && savedGuesses[t] !== '') {
+                input.value = savedGuesses[t];
+            } else if (myGuesses[t]) {
+                input.value = myGuesses[t];
             }
         });
+        if (myCenterGuess) {
+            document.getElementById('center-guess-input').value = myCenterGuess;
+        }
         
         if (me && me.has_guesses) {
             document.getElementById('btn-submit-guesses').style.display = 'none';
@@ -271,8 +345,8 @@ socket.on('update_state', (data) => {
 
             // Build guesses rows (label above, then two-col aligned chars)
             let guessRows = '';
-            Object.entries(p.guesses).forEach(([targetSid, guess]) => {
-                const target = data.players.find(tp => tp.sid === targetSid);
+            Object.entries(p.guesses).forEach(([targetId, guess]) => {
+                const target = data.players.find(tp => tp.id === targetId);
                 if (!target) return;
                 const isHit = guess === target.hidden_word;
                 guessRows += `
@@ -374,13 +448,13 @@ document.getElementById('btn-enter').addEventListener('click', () => {
 });
 
 document.getElementById('btn-create-room').addEventListener('click', () => {
-    socket.emit('create_room', { name: myName });
+    socket.emit('create_room', { name: myName, client_id: myClientId });
 });
 
 document.getElementById('btn-join-room').addEventListener('click', () => {
     const code = document.getElementById('room-code-input').value.trim();
     if (code.length === 0) return showMessage('请输入成语房间名');
-    socket.emit('join_room', { name: myName, room_code: code });
+    socket.emit('join_room', { name: myName, room_code: code, client_id: myClientId });
 });
 
 document.getElementById('btn-copy-code').addEventListener('click', () => {
