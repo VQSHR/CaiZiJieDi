@@ -24,6 +24,20 @@ const phases = {
     RESULT_PHASE: document.getElementById('phase-result')
 };
 
+let messageTimer = null;
+function showMessage(msg, duration = 3000) {
+    const el = document.getElementById('app-message');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(messageTimer);
+    if (duration > 0) {
+        messageTimer = setTimeout(() => {
+            el.style.display = 'none';
+            el.textContent = '';
+        }, duration);
+    }
+}
+
 // Switch active view
 function switchView(viewName) {
     Object.values(views).forEach(v => v.classList.remove('active'));
@@ -84,7 +98,7 @@ socket.on('connect', () => {
 });
 
 socket.on('error', (data) => {
-    alert(data.msg);
+    showMessage(data.msg);
 });
 
 socket.on('room_joined', (data) => {
@@ -354,7 +368,7 @@ document.addEventListener('input', (e) => {
 // Event Listeners
 document.getElementById('btn-enter').addEventListener('click', () => {
     const name = document.getElementById('player-name').value.trim();
-    if (!name) return alert('请输入名字');
+    if (!name) return showMessage('请输入名字');
     myName = name;
     switchView('lobby');
 });
@@ -365,7 +379,7 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
 
 document.getElementById('btn-join-room').addEventListener('click', () => {
     const code = document.getElementById('room-code-input').value.trim();
-    if (code.length === 0) return alert('请输入成语房间名');
+    if (code.length === 0) return showMessage('请输入成语房间名');
     socket.emit('join_room', { name: myName, room_code: code });
 });
 
@@ -388,7 +402,7 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
 document.getElementById('btn-submit-hints').addEventListener('click', () => {
     const hint1 = document.getElementById('hint1-input').value.trim();
     const hint2 = document.getElementById('hint2-input').value.trim();
-    if (!hint1 || !hint2) return alert('请输入两个提示字');
+    if (!hint1 || !hint2) return showMessage('请输入两个提示字');
     socket.emit('submit_hints', { hint1, hint2 });
 });
 
@@ -406,7 +420,7 @@ document.getElementById('btn-submit-guesses').addEventListener('click', () => {
     const centerGuess = document.getElementById('center-guess-input').value.trim();
     if (!centerGuess) allFilled = false;
     
-    if (!allFilled) return alert('请填完所有的猜测和中心字猜测');
+    if (!allFilled) return showMessage('请填完所有的猜测和中心字猜测');
     
     socket.emit('submit_guesses', { guesses, center_guess: centerGuess });
 });

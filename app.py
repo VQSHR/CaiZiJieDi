@@ -8,6 +8,7 @@ from room import Room
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-only-secret-change-me')
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 socketio = SocketIO(app)
 
 rooms = {} # room_code -> Room instance
