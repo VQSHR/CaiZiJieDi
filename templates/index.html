@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>猜字解底联机版</title>
-    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/static/js/socket.io.min.js"></script>
 </head>
 <body>
     <div id="background"></div>
@@ -45,8 +44,14 @@
                     <button id="btn-copy-code" class="btn-icon">复制</button>
                 </div>
                 <div id="ready-status" style="display:none; color: var(--primary-gold); margin: 0 10px;">准备: <span id="ready-count">0</span>/<span id="total-count">0</span></div>
-                <span id="display-state-badge" class="badge">等待中</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="display-state-badge" class="badge">等待中</span>
+                    <button id="btn-exit-room" class="btn-icon" style="color: var(--seal-red); border-color: var(--seal-red);">退出</button>
+                </div>
             </div>
+
+            <!-- 获胜横幅 -->
+            <div id="winner-banner" class="winner-banner" style="display:none;"></div>
 
             <!-- 玩家列表横幅 -->
             <div id="players-list" class="players-list"></div>

@@ -113,6 +113,22 @@ def on_disconnect():
         emit('update_state', room.get_public_state(), to=room_code)
 
 
+@socketio.on('exit_room')
+def on_exit_room():
+    room_code = sid_to_room.pop(request.sid, None)
+    if not room_code or room_code not in rooms:
+        return
+    room = rooms[room_code]
+    p = room.get_player_by_sid(request.sid)
+    if p:
+        room.remove_player(p['client_id'])
+    leave_room(room_code)
+    if not room.players:
+        del rooms[room_code]
+    else:
+        emit('update_state', room.get_public_state(), to=room_code)
+
+
 @socketio.on('start_game')
 def on_start_game():
     room_code = sid_to_room.get(request.sid)

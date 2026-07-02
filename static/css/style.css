@@ -9,6 +9,14 @@
     --accent-green: #2D7D3F;
 }
 
+@font-face {
+    font-family: 'Ma Shan Zheng';
+    src: url('/static/fonts/ma-shan-zheng.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -16,7 +24,7 @@
 }
 
 body {
-    font-family: 'Noto Serif SC', serif;
+    font-family: 'Noto Serif SC', SimSun, 'Songti SC', serif;
     background-color: #EAE4D9;
     color: var(--text);
     min-height: 100vh;
@@ -171,6 +179,16 @@ button {
     padding: 0.2rem 0.6rem;
     border-radius: 12px;
     font-size: 0.8rem;
+}
+
+.winner-banner {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 2.5rem;
+    text-align: center;
+    color: var(--seal-red);
+    margin-bottom: 1rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    animation: fadeIn 0.5s ease;
 }
 
 .players-list {

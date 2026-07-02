@@ -78,6 +78,20 @@ class Room:
                     break
         return True
 
+    def remove_player(self, client_id):
+        """Immediately remove a player (explicit leave). Reassign host if needed."""
+        p = self.players.get(client_id)
+        if not p:
+            return False
+        was_host = p['is_host']
+        del self.players[client_id]
+        if was_host and self.players:
+            for other in self.players.values():
+                if other['connected']:
+                    other['is_host'] = True
+                    break
+        return True
+
     def start_game(self):
         connected = [p for p in self.players.values() if p['connected']]
         if len(connected) < 2:

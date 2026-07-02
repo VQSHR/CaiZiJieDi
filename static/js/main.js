@@ -106,7 +106,27 @@ function renderPlayers(players) {
     
     amIHost = false;
     
-    players.forEach((p, idx) => {
+    const isResult = gameState && gameState.state === 'RESULT_PHASE';
+    // Stable color index by original join order (so colors don't reshuffle when ranked)
+    const colorIndex = {};
+    players.forEach((p, i) => { colorIndex[p.id] = i; });
+    
+    // Winner banner (result phase only)
+    const banner = document.getElementById('winner-banner');
+    if (isResult && players.length > 0) {
+        const maxScore = Math.max(...players.map(p => p.score));
+        const winners = players.filter(p => p.score === maxScore).map(p => p.name);
+        banner.textContent = winners.join('、') + ' 获胜！';
+        banner.style.display = 'block';
+    } else {
+        banner.style.display = 'none';
+    }
+    
+    // Rank by score in result phase; otherwise keep join order
+    const display = isResult ? [...players].sort((a, b) => b.score - a.score) : players;
+    
+    display.forEach((p) => {
+        const idx = colorIndex[p.id];
         const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
         if (p.id === myClientId && p.is_host) amIHost = true;
         
@@ -149,6 +169,7 @@ socket.on('error', (data) => {
         pendingRoom = '';
         currentRoom = '';
         hideMessage();
+        document.getElementById('player-name').value = myName;
         switchView('login');
     }
 });
@@ -463,6 +484,20 @@ document.getElementById('btn-copy-code').addEventListener('click', () => {
         btn.innerText = '已复制';
         setTimeout(() => btn.innerText = '复制', 2000);
     });
+});
+
+document.getElementById('btn-exit-room').addEventListener('click', () => {
+    socket.emit('exit_room');
+    sessionStorage.removeItem('caizijiedi_session');
+    currentRoom = '';
+    pendingRoom = '';
+    gameState = null;
+    myHiddenWord = '';
+    myGuesses = {};
+    myCenterGuess = '';
+    hideMessage();
+    document.getElementById('player-name').value = myName;
+    switchView('login');
 });
 
 document.getElementById('btn-toggle-ready').addEventListener('click', () => {
