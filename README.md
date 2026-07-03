@@ -15,12 +15,16 @@
 
 ## 功能特性
 
-- 实时房间系统（创建、加入、离开）
+- 实时房间系统（创建、加入、退出）
 - 房主机制与准备机制
 - 四阶段流程：大厅、出题、猜测、结算
-- 回合积分累计
+- 回合积分累计，结算页按分数排名并展示获胜者
+- 刷新自动重连：稳定 client_id，中途断线/刷新可恢复房间、隐藏字、已提交的提示与猜测
+- 提交状态实时显示（准备 / 已提交）
+- 米字格展示汉字，毛笔字体（Ma Shan Zheng）本地内置
 - 房间号使用成语词库生成
 - 单页面前端交互，Socket.IO 实时同步状态
+- 前端资源全部本地化，不依赖外部 CDN
 
 ## 游戏流程
 
@@ -29,7 +33,8 @@
 3. 大厅阶段所有玩家准备，房主可开始游戏
 4. 出题阶段每位玩家提交两个提示字
 5. 猜测阶段猜他人隐藏字并猜中心字
-6. 结算阶段展示答案与分数，房主可再来一局
+6. 结算阶段展示答案与分数、获胜者，房主可再来一局
+7. 任意阶段可点"退出"离开房间（不影响其他人继续）
 
 ## 本地开发启动
 
@@ -77,10 +82,12 @@ python app.py
 ## 项目结构
 
 - [app.py](app.py)：Flask 路由与 Socket.IO 事件入口
-- [room.py](room.py)：房间状态机与计分逻辑
+- [room.py](room.py)：房间状态机与计分逻辑（按 client_id 记玩家、断线宽限、重连恢复）
 - [templates/index.html](templates/index.html)：主页面模板
-- [static/js/main.js](static/js/main.js)：前端事件与渲染逻辑
+- [static/js/main.js](static/js/main.js)：前端事件与渲染逻辑（含重连、状态恢复）
+- [static/js/socket.io.min.js](static/js/socket.io.min.js)：Socket.IO 客户端（本地内置）
 - [static/css/style.css](static/css/style.css)：页面样式
+- [static/fonts/ma-shan-zheng.woff2](static/fonts/ma-shan-zheng.woff2)：毛笔字体（本地内置）
 - [words.json](words.json)：中心字与隐藏字词库
 - [idioms.json](idioms.json)：房间名成语词库
 - [process_hsk.py](process_hsk.py)：词库处理脚本
@@ -88,6 +95,8 @@ python app.py
 ## 注意事项
 
 - 当前房间状态保存在进程内存中，单实例部署最简单
+- 重连机制依赖进程内存中的玩家状态，单实例下生效；多实例需引入共享存储（如 Redis）
+- 前端依赖（Socket.IO 客户端、字体）已本地化，无需联网拉取外部 CDN
 - 若需要水平扩容，多实例场景建议引入 Redis 消息队列和会话粘性
 - 生产环境不要直接暴露 Flask 开发服务器，建议使用 Gunicorn + Nginx
 
