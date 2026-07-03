@@ -3,12 +3,14 @@
 一个基于 Flask + Flask-SocketIO 的多人联机文字推理小游戏。
 
 玩家在同一房间内进行多回合对局：
+
 - 每人会拿到一个隐藏字
 - 每人提交两个提示字
 - 所有人根据提示猜他人的隐藏字，并额外猜中心字
 - 按规则累计积分，支持再来一局
 
 项目入口：
+
 - 服务端入口：[app.py](app.py)
 - 前端页面：[templates/index.html](templates/index.html)
 - 前端逻辑：[static/js/main.js](static/js/main.js)
@@ -56,7 +58,8 @@ python -m pip install flask flask-socketio
 python app.py
 
 默认访问地址：
-- http://127.0.0.1:5000
+
+- [http://127.0.0.1:5000](http://127.0.0.1:5000)
 
 ## 环境变量
 
