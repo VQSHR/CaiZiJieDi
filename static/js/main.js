@@ -111,21 +111,24 @@ function renderPlayers(players) {
     const colorIndex = {};
     players.forEach((p, i) => { colorIndex[p.id] = i; });
     
-    // Winner banner (result phase only)
+    // Winner banner (result phase only, regular players only)
     const banner = document.getElementById('winner-banner');
-    if (isResult && players.length > 0) {
-        const maxScore = Math.max(...players.map(p => p.score));
-        const winners = players.filter(p => p.score === maxScore).map(p => p.name);
+    const regulars = players.filter(p => !p.is_spectator);
+    if (isResult && regulars.length > 0) {
+        const maxScore = Math.max(...regulars.map(p => p.score));
+        const winners = regulars.filter(p => p.score === maxScore).map(p => p.name);
         banner.textContent = winners.join('、') + ' 获胜！';
         banner.style.display = 'block';
     } else {
         banner.style.display = 'none';
     }
     
-    // Rank by score in result phase; otherwise keep join order
-    const display = isResult ? [...players].sort((a, b) => b.score - a.score) : players;
-    
-    display.forEach((p) => {
+    // Regular players first (ranked by score in result phase), then a separator, then spectators
+    const regs = isResult ? regulars.slice().sort((a, b) => b.score - a.score) : regulars;
+    const specsAll = players.filter(p => p.is_spectator);
+    const specs = isResult ? specsAll.slice().sort((a, b) => b.score - a.score) : specsAll;
+
+    const appendTag = (p) => {
         const idx = colorIndex[p.id];
         const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
         if (p.id === myClientId && p.is_host) amIHost = true;
@@ -146,13 +149,80 @@ function renderPlayers(players) {
         tag.innerHTML = `
             <span style="color: ${pColor}; font-weight: bold;">${p.name}</span>
             ${p.is_host ? '<span style="color: var(--ink); border: 1px solid var(--ink); padding: 0 6px; border-radius: 3px; font-size: 0.75rem; margin-left: 6px;">房主</span>' : ''}
+            ${p.is_spectator ? '<span style="color: var(--text-light); border: 1px solid var(--text-light); padding: 0 6px; border-radius: 3px; font-size: 0.75rem; margin-left: 6px;">旁观者</span>' : ''}
             <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-light);">
                 ${statusTag}
                 <span>${p.score}分</span>
             </span>
         `;
         list.appendChild(tag);
+    };
+
+    regs.forEach(appendTag);
+    if (specs.length > 0) {
+        const sep = document.createElement('div');
+        sep.className = 'player-list-separator';
+        sep.textContent = '旁观者';
+        list.appendChild(sep);
+        specs.forEach(appendTag);
+    }
+}
+
+// Build the "猜测 | 正确答案" section (divider + header + each guess vs target's hidden word + center guess)
+function buildGuessSection(p, data) {
+    let guessRows = '';
+    Object.entries(p.guesses).forEach(([targetId, guess]) => {
+        const target = data.players.find(tp => tp.id === targetId);
+        if (!target) return;
+        const isHit = guess === target.hidden_word;
+        guessRows += `
+            <div class="result-guess-group">
+                <div class="result-guess-label">猜 ${target.name} ${isHit ? '<span style="color:#4CAF50">✓</span>' : '<span style="color:#F44336">✗</span>'}</div>
+                <div class="result-two-col">
+                    <div class="result-col">
+                        <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                            <span style="font-size: 2rem; line-height: 56px;">${guess}</span>
+                        </div>
+                    </div>
+                    <div class="result-col">
+                        <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                            <span style="font-size: 2rem; line-height: 56px;">${target.hidden_word}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
     });
+    const isCenterCorrect = p.center_guess === data.center_word;
+    guessRows += `
+        <div class="result-guess-group">
+            <div class="result-guess-label">猜中心字 ${isCenterCorrect ? '<span style="color:#4CAF50">✓ 正确</span>' : '<span style="color:#F44336">✗ 错误</span>'}</div>
+            <div class="result-two-col">
+                <div class="result-col">
+                    <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                        <span style="font-size: 2rem; line-height: 56px;">${p.center_guess}</span>
+                    </div>
+                </div>
+                <div class="result-col">
+                    <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
+                        <span style="font-size: 2rem; line-height: 56px;">${data.center_word}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    return `
+        <div class="result-divider"></div>
+        <div class="result-two-col result-guess-header">
+            <div class="result-col">
+                <div class="result-col-header">猜测</div>
+            </div>
+            <div class="result-col">
+                <div class="result-col-header">正确答案</div>
+            </div>
+        </div>
+        ${guessRows || '<p style="color: var(--text-light); font-size: 0.9rem; padding: 4px 0;">无</p>'}
+    `;
 }
 
 // Socket Events
@@ -177,6 +247,12 @@ socket.on('error', (data) => {
         hideMessage();
         document.getElementById('player-name').value = myName;
         switchView('login');
+    }
+});
+
+socket.on('spectator_prompt', (data) => {
+    if (confirm('该房间游戏正在进行中，是否以旁观者身份加入？')) {
+        socket.emit('join_room', { name: myName, room_code: data.room_code, client_id: myClientId, spectator: true });
     }
 });
 
@@ -252,7 +328,10 @@ socket.on('update_state', (data) => {
     // HINT PHASE
     if (data.state === 'HINT_PHASE') {
         const me = data.players.find(p => p.id === myClientId);
-        if (me && me.has_hints) {
+        const isSpectator = me && me.is_spectator;
+        document.getElementById('hint-player-content').style.display = isSpectator ? 'none' : 'block';
+        document.getElementById('hint-spectator-msg').style.display = isSpectator ? 'block' : 'none';
+        if (!isSpectator && me && me.has_hints) {
             document.getElementById('btn-submit-hints').style.display = 'none';
             document.getElementById('hint-wait-msg').style.display = 'block';
             document.getElementById('hint1-input').disabled = true;
@@ -274,8 +353,8 @@ socket.on('update_state', (data) => {
         const container = document.getElementById('guesses-container');
         container.innerHTML = '';
 
-        // Show own hints and hidden word first
-        if (me) {
+        // Show own hints and hidden word first (spectators have no hidden word)
+        if (me && !me.is_spectator) {
             const myIdx = data.players.findIndex(p => p.id === myClientId);
             const myColor = PLAYER_COLORS[myIdx % PLAYER_COLORS.length];
             const selfDiv = document.createElement('div');
@@ -307,7 +386,7 @@ socket.on('update_state', (data) => {
         }
 
         data.players.forEach((p, idx) => {
-            if (p.id === myClientId) return; // Don't guess self
+            if (p.id === myClientId || p.is_spectator) return; // Only guess regular players, not self/spectators
             const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
 
             const div = document.createElement('div');
@@ -367,52 +446,8 @@ socket.on('update_state', (data) => {
         container.innerHTML = '';
         
         data.players.forEach((p, idx) => {
+            if (p.is_spectator) return; // spectators shown in a separate section below
             const pColor = PLAYER_COLORS[idx % PLAYER_COLORS.length];
-            const isCenterCorrect = p.center_guess === data.center_word;
-
-            // Build guesses rows (label above, then two-col aligned chars)
-            let guessRows = '';
-            Object.entries(p.guesses).forEach(([targetId, guess]) => {
-                const target = data.players.find(tp => tp.id === targetId);
-                if (!target) return;
-                const isHit = guess === target.hidden_word;
-                guessRows += `
-                    <div class="result-guess-group">
-                        <div class="result-guess-label">猜 ${target.name} ${isHit ? '<span style="color:#4CAF50">✓</span>' : '<span style="color:#F44336">✗</span>'}</div>
-                        <div class="result-two-col">
-                            <div class="result-col">
-                                <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
-                                    <span style="font-size: 2rem; line-height: 56px;">${guess}</span>
-                                </div>
-                            </div>
-                            <div class="result-col">
-                                <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
-                                    <span style="font-size: 2rem; line-height: 56px;">${target.hidden_word}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            // Center guess row
-            guessRows += `
-                <div class="result-guess-group">
-                    <div class="result-guess-label">猜中心字 ${isCenterCorrect ? '<span style="color:#4CAF50">✓ 正确</span>' : '<span style="color:#F44336">✗ 错误</span>'}</div>
-                    <div class="result-two-col">
-                        <div class="result-col">
-                            <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
-                                <span style="font-size: 2rem; line-height: 56px;">${p.center_guess}</span>
-                            </div>
-                        </div>
-                        <div class="result-col">
-                            <div class="mi-zi-ge-wrapper" style="width: 56px; height: 56px;">
-                                <span style="font-size: 2rem; line-height: 56px;">${data.center_word}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
 
             const div = document.createElement('div');
             div.className = 'result-item';
@@ -440,19 +475,32 @@ socket.on('update_state', (data) => {
                         </div>
                     </div>
                 </div>
-                <div class="result-divider"></div>
-                <div class="result-two-col result-guess-header">
-                    <div class="result-col">
-                        <div class="result-col-header">猜测</div>
-                    </div>
-                    <div class="result-col">
-                        <div class="result-col-header">正确答案</div>
-                    </div>
-                </div>
-                ${guessRows || '<p style="color: var(--text-light); font-size: 0.9rem; padding: 4px 0;">无</p>'}
+                ${buildGuessSection(p, data)}
             `;
             container.appendChild(div);
         });
+
+        // Spectator ranking (separate section, sorted by score, full guess details like players)
+        const spectators = data.players.filter(p => p.is_spectator).sort((a, b) => b.score - a.score);
+        if (spectators.length > 0) {
+            const heading = document.createElement('div');
+            heading.style.cssText = 'text-align:center; font-family:"Ma Shan Zheng",cursive; font-size:1.6rem; color:var(--text-light); margin:1.5rem 0 0.5rem;';
+            heading.textContent = '旁观者排名';
+            container.appendChild(heading);
+
+            spectators.forEach((sp, i) => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.style.setProperty('border-left', '4px solid var(--text-light)');
+                div.innerHTML = `
+                    <div class="result-player-name" style="color: var(--text-light); font-size: 1.2rem; font-weight: bold; margin-bottom: 12px;">
+                        ${i + 1}. ${sp.name}（旁观者）<span class="score">${sp.score}分</span>
+                    </div>
+                    ${buildGuessSection(sp, data)}
+                `;
+                container.appendChild(div);
+            });
+        }
         
         document.getElementById('btn-restart-game').style.display = amIHost ? 'inline-block' : 'none';
     }

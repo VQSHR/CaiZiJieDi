@@ -71,20 +71,25 @@ def on_join_room(data):
 
     room = rooms[room_code]
     is_reconnect = client_id in room.players
+    spectator = bool(data.get('spectator'))
+
     if not is_reconnect and room.state != 'LOBBY':
-        emit('error', {'msg': '该房间的游戏正在进行中，无法中途加入'})
-        return
+        # Game in progress: a brand-new joiner must spectate (with confirmation)
+        if not spectator:
+            emit('spectator_prompt', {'room_code': room_code}, to=request.sid)
+            return
+        # spectator=True: fall through and add as spectator
 
     join_room(room_code)
     sid_to_room[request.sid] = room_code
-    room.add_player(client_id, request.sid, name)
+    room.add_player(client_id, request.sid, name, spectator=spectator and not is_reconnect)
 
     emit('room_joined', {'room_code': room_code})
 
     # On reconnect mid-game, restore private info BEFORE the state broadcast,
     # so the client renders its own hidden word / submitted hints on first paint
     p = room.get_player_by_sid(request.sid)
-    if p and p['hidden_word']:
+    if p and (p['hidden_word'] or p['center_guess']):
         emit('private_info', {
             'hidden_word': p['hidden_word'],
             'hints': p['hints'],
@@ -138,7 +143,7 @@ def on_start_game():
     p = room.get_player_by_sid(request.sid)
     if not (p and p['is_host']):
         return
-    connected = [pl for pl in room.players.values() if pl['connected']]
+    connected = [pl for pl in room.players.values() if pl['connected'] and not pl['is_spectator']]
     if not all(pl['is_ready'] for pl in connected):
         emit('error', {'msg': '所有玩家准备后才能开始'}, to=request.sid)
         return

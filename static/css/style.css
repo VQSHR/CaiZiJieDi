@@ -198,6 +198,22 @@ button {
     margin-bottom: 1.5rem;
 }
 
+.player-list-separator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0.4rem 0;
+    color: var(--text-light);
+    font-size: 0.75rem;
+}
+.player-list-separator::before,
+.player-list-separator::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #ccc;
+}
+
 .player-tag {
     background: rgba(0, 0, 0, 0.04);
     border: 1px solid rgba(0, 0, 0, 0.1);

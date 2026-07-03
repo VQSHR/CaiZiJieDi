@@ -67,23 +67,26 @@
 
             <!-- 提示阶段 -->
             <div id="phase-hint" class="phase-panel" style="display:none;">
-                <p style="margin-bottom: 10px;">您的隐藏字是：</p>
-                <div class="mi-zi-ge-container">
-                    <div class="mi-zi-ge-wrapper">
-                        <span id="my-hidden-word"></span>
+                <div id="hint-player-content">
+                    <p style="margin-bottom: 10px;">您的隐藏字是：</p>
+                    <div class="mi-zi-ge-container">
+                        <div class="mi-zi-ge-wrapper">
+                            <span id="my-hidden-word"></span>
+                        </div>
                     </div>
+                    <p style="margin-bottom: 10px;">请给出两个提示字（能分别与隐藏字组词）：</p>
+                    <div class="mi-zi-ge-container">
+                        <div class="mi-zi-ge-wrapper">
+                            <input type="text" id="hint1-input" maxlength="1" autocomplete="off">
+                        </div>
+                        <div class="mi-zi-ge-wrapper">
+                            <input type="text" id="hint2-input" maxlength="1" autocomplete="off">
+                        </div>
+                    </div>
+                    <button id="btn-submit-hints" class="btn-primary">提交提示</button>
+                    <p id="hint-wait-msg" style="display:none; margin-top: 10px;">已提交，等待他人...</p>
                 </div>
-                <p style="margin-bottom: 10px;">请给出两个提示字（能分别与隐藏字组词）：</p>
-                <div class="mi-zi-ge-container">
-                    <div class="mi-zi-ge-wrapper">
-                        <input type="text" id="hint1-input" maxlength="1" autocomplete="off">
-                    </div>
-                    <div class="mi-zi-ge-wrapper">
-                        <input type="text" id="hint2-input" maxlength="1" autocomplete="off">
-                    </div>
-                </div>
-                <button id="btn-submit-hints" class="btn-primary">提交提示</button>
-                <p id="hint-wait-msg" style="display:none; margin-top: 10px;">已提交，等待他人...</p>
+                <p id="hint-spectator-msg" style="display:none; font-size: 1.2rem; color: var(--text-light);">正在等待玩家出题中…</p>
             </div>
 
             <!-- 猜测阶段 -->

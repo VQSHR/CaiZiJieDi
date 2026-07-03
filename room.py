@@ -13,15 +13,15 @@ class Room:
         with open('words.json', 'r', encoding='utf-8') as f:
             self.word_bank = json.load(f)
 
-    def add_player(self, client_id, sid, name):
+    def add_player(self, client_id, sid, name, spectator=False):
         if client_id in self.players:
             # Reconnect: update socket sid, mark connected, keep all state
             p = self.players[client_id]
             p['sid'] = sid
             p['connected'] = True
             return
-        # New player: host only if the room has no host yet
-        is_host = not any(p['is_host'] for p in self.players.values())
+        # New player: host only if the room has no host yet and not a spectator
+        is_host = not spectator and not any(p['is_host'] for p in self.players.values())
 
         base_name = name
         index = 1
@@ -36,8 +36,9 @@ class Room:
             'name': name,
             'score': 0,
             'is_host': is_host,
-            'is_ready': False,
+            'is_ready': spectator,  # spectators don't need to ready
             'connected': True,
+            'is_spectator': spectator,
             'hidden_word': '',
             'hints': ['', ''],
             'guesses': {},  # target_client_id -> guessed word
@@ -93,7 +94,7 @@ class Room:
         return True
 
     def start_game(self):
-        connected = [p for p in self.players.values() if p['connected']]
+        connected = [p for p in self.players.values() if p['connected'] and not p['is_spectator']]
         if len(connected) < 2:
             return False
 
@@ -105,10 +106,12 @@ class Room:
 
         for i, player in enumerate(connected):
             player['hidden_word'] = available_hidden[i]
-            player['hints'] = ['', '']
-            player['guesses'] = {}
-            player['center_guess'] = ''
-            player['is_ready'] = False
+        # Reset round state for everyone (players + spectators)
+        for p in self.players.values():
+            p['hints'] = ['', '']
+            p['guesses'] = {}
+            p['center_guess'] = ''
+            p['is_ready'] = False
 
         return True
 
@@ -126,10 +129,10 @@ class Room:
         if not hint1 or not hint2:
             return False
         p = self.get_player_by_sid(sid)
-        if not p:
+        if not p or p['is_spectator']:
             return False
         p['hints'] = [hint1, hint2]
-        connected = [pl for pl in self.players.values() if pl['connected']]
+        connected = [pl for pl in self.players.values() if pl['connected'] and not pl['is_spectator']]
         if all(pl['hints'][0] != '' for pl in connected):
             self.state = 'GUESS_PHASE'
         return True
@@ -142,7 +145,8 @@ class Room:
             return False
         p['guesses'] = guesses
         p['center_guess'] = center_guess
-        connected = [pl for pl in self.players.values() if pl['connected']]
+        # Phase advances when all regular (non-spectator) connected players submitted
+        connected = [pl for pl in self.players.values() if pl['connected'] and not pl['is_spectator']]
         if all(pl['center_guess'] != '' for pl in connected):
             self.calculate_scores()
             self.state = 'RESULT_PHASE'
@@ -157,7 +161,9 @@ class Room:
                     target = self.players[target_id]
                     if guess == target['hidden_word']:
                         p['score'] += 1
-                        target['score'] += 1
+                        # Spectator guesses only score the spectator; don't reward the target
+                        if not p['is_spectator']:
+                            target['score'] += 1
 
     def reset_lobby(self):
         self.state = 'LOBBY'
@@ -167,6 +173,7 @@ class Room:
             p['guesses'] = {}
             p['center_guess'] = ''
             p['is_ready'] = False
+            p['is_spectator'] = False  # spectators become regular players next round
             # scores are kept across rounds
 
     def get_public_state(self):
@@ -181,6 +188,7 @@ class Room:
                     'is_host': p['is_host'],
                     'is_ready': p['is_ready'],
                     'connected': p['connected'],
+                    'is_spectator': p['is_spectator'],
                     'has_hints': p['hints'][0] != '',
                     'has_guesses': p['center_guess'] != '',
                     'hints': p['hints'] if self.state in ['GUESS_PHASE', 'RESULT_PHASE'] else ['', ''],
