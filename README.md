@@ -22,7 +22,9 @@
 - 四阶段流程：大厅、出题、猜测、结算
 - 回合积分累计，结算页按分数排名并展示获胜者
 - 刷新自动重连：稳定 client_id，中途断线/刷新可恢复房间、隐藏字、已提交的提示与猜测
-- 提交状态实时显示（准备 / 已提交）
+- 旁观者模式：游戏进行中可经确认以旁观者身份加入，不分配隐藏字/不出题，可猜测，单独计分排名
+- 中途退出保留数据：玩家退出后其隐藏字/提示字/已提交猜测保留至本局结束，其他人仍可猜他的字、他的猜测仍参与计分
+- 提交状态实时显示（准备 / 已提交 / 已离开）
 - 米字格展示汉字，毛笔字体（Ma Shan Zheng）本地内置
 - 房间号使用成语词库生成
 - 单页面前端交互，Socket.IO 实时同步状态
@@ -36,7 +38,8 @@
 4. 出题阶段每位玩家提交两个提示字
 5. 猜测阶段猜他人隐藏字并猜中心字
 6. 结算阶段展示答案与分数、获胜者，房主可再来一局
-7. 任意阶段可点"退出"离开房间（不影响其他人继续）
+7. 任意阶段可点"退出"离开房间：其隐藏字/提示字/已提交猜测保留至本局结束，不影响其他人继续
+8. 游戏进行中加入的新玩家会询问是否以旁观者身份加入（旁观者可猜测，单独排名）
 
 ## 本地开发启动
 
@@ -85,9 +88,9 @@ python app.py
 ## 项目结构
 
 - [app.py](app.py)：Flask 路由与 Socket.IO 事件入口
-- [room.py](room.py)：房间状态机与计分逻辑（按 client_id 记玩家、断线宽限、重连恢复）
+- [room.py](room.py)：房间状态机与计分逻辑（按 client_id 记玩家、断线/退出保留数据、重连恢复、旁观者）
 - [templates/index.html](templates/index.html)：主页面模板
-- [static/js/main.js](static/js/main.js)：前端事件与渲染逻辑（含重连、状态恢复）
+- [static/js/main.js](static/js/main.js)：前端事件与渲染逻辑（含重连、状态恢复、旁观者视图）
 - [static/js/socket.io.min.js](static/js/socket.io.min.js)：Socket.IO 客户端（本地内置）
 - [static/css/style.css](static/css/style.css)：页面样式
 - [static/fonts/ma-shan-zheng.woff2](static/fonts/ma-shan-zheng.woff2)：毛笔字体（本地内置）
