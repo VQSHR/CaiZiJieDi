@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, join_room, leave_room, emit
 import os
 import random
 import json
+import time
 from room import Room
 
 app = Flask(__name__)
@@ -12,6 +13,8 @@ socketio = SocketIO(app)
 
 rooms = {}  # room_code -> Room instance
 sid_to_room = {}  # sid -> room_code
+urge_cooldowns = {}  # client_id -> last urge timestamp
+URGE_COOLDOWN = 5.0  # seconds between urges from the same client
 
 with open('idioms.json', 'r', encoding='utf-8') as f:
     idioms_list = json.load(f)
@@ -197,6 +200,43 @@ def on_restart_game():
         if p and p['is_host']:
             room.reset_lobby()
             emit('update_state', room.get_public_state(), to=room_code)
+
+
+@socketio.on('urge')
+def on_urge(data):
+    room_code = sid_to_room.get(request.sid)
+    if not room_code or room_code not in rooms:
+        return
+    room = rooms[room_code]
+    p = room.get_player_by_sid(request.sid)
+    if not p:
+        return
+    now = time.time()
+    if now - urge_cooldowns.get(p['client_id'], 0) < URGE_COOLDOWN:
+        emit('error', {'msg': '催促太频繁，稍后再试'}, to=request.sid)
+        return
+    urge_cooldowns[p['client_id']] = now
+    emit('urge', {'from': p['name'], 'text': data.get('text', '快点！')}, to=room_code)
+
+
+@socketio.on('throw_tomato')
+def on_throw_tomato(data):
+    room_code = sid_to_room.get(request.sid)
+    if not room_code or room_code not in rooms:
+        return
+    room = rooms[room_code]
+    p = room.get_player_by_sid(request.sid)
+    if not p:
+        return
+    target = data.get('target_id', '')
+    tp = room.players.get(target)
+    target_name = tp['name'] if tp else '?'
+    emit('throw_tomato', {
+        'from': p['name'],
+        'from_id': p['client_id'],
+        'target_id': target,
+        'target_name': target_name
+    }, to=room_code)
 
 
 if __name__ == '__main__':

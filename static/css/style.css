@@ -390,3 +390,94 @@ button {
     color: var(--text-light);
     margin-bottom: 4px;
 }
+
+/* 等待时的互动按钮 */
+.wait-actions {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+    margin-top: 14px;
+}
+.wait-actions .btn-secondary {
+    width: auto;
+    padding: 0.5rem 1.3rem;
+}
+
+/* 投掷目标弹窗 */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-box {
+    background: var(--paper);
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    border: 2px solid var(--ink);
+    min-width: 240px;
+    max-width: 90vw;
+    text-align: center;
+}
+
+/* 催促气泡 */
+.urge-bubble {
+    position: fixed;
+    top: 16%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.7rem 1.3rem;
+    border-radius: 18px;
+    font-size: 1.05rem;
+    z-index: 1100;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    animation: bubblePop 0.4s ease;
+    max-width: 80vw;
+    text-align: center;
+}
+.urge-bubble .from {
+    font-weight: bold;
+    color: #ffd36b;
+    margin-right: 6px;
+}
+@keyframes bubblePop {
+    0% { transform: translateX(-50%) scale(0.4); opacity: 0; }
+    60% { transform: translateX(-50%) scale(1.12); opacity: 1; }
+    100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* 番茄飞溅 */
+.tomato-splash {
+    position: fixed;
+    top: 28%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1200;
+    text-align: center;
+    animation: tomatoFly 0.6s ease;
+}
+.tomato-splash .tomato {
+    font-size: 7rem;
+    display: block;
+    animation: tomatoBounce 0.6s ease;
+}
+.tomato-splash .label {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 1.5rem;
+    color: var(--seal-red);
+    margin-top: 0.4rem;
+}
+@keyframes tomatoFly {
+    0% { transform: translateX(-50%) translateY(-240px) rotate(-30deg); opacity: 0; }
+    60% { transform: translateX(-50%) translateY(15px) rotate(12deg); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(0) rotate(0); opacity: 1; }
+}
+@keyframes tomatoBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+}

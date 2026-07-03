@@ -8,6 +8,21 @@ if (!myClientId) {
     sessionStorage.setItem('caizijiedi_cid', myClientId);
 }
 
+const URGE_TEXTS = [
+    '快点啊，等得花儿都谢了！',
+    '你怎么这么慢啊',
+    '出牌啊，别磨蹭',
+    '我杯子都喝完了',
+    '老板，搞快点',
+    '再不出我就要睡着了',
+    '你是用脚在打字吗？',
+    '快快快，雷打不动',
+    '我等得都长蘑菇了',
+    '能不能有点效率',
+    '催催催，再不交我走了',
+    '快点，我的番茄都准备好了',
+];
+
 // State
 let myName = '';
 let mySid = '';
@@ -67,6 +82,83 @@ function hideMessage() {
     el.style.display = 'none';
     el.textContent = '';
     clearTimeout(messageTimer);
+}
+
+// Pop a speech bubble (urge message) at the top of the screen
+function showUrgeBubble(from, text) {
+    const b = document.createElement('div');
+    b.className = 'urge-bubble';
+    b.innerHTML = `<span class="from">${from}:</span>${text}`;
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), 3500);
+}
+
+// A plain note bubble (e.g. someone threw a tomato)
+function showNoteBubble(text) {
+    const b = document.createElement('div');
+    b.className = 'urge-bubble';
+    b.textContent = text;
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), 2600);
+}
+
+// Tomato flies from the sender's player tag to the target's player tag, then splashes
+function flyTomato(fromId, targetId, fromName) {
+    const fromTag = document.querySelector(`#players-list .player-tag[data-pid="${fromId}"]`);
+    const toTag = document.querySelector(`#players-list .player-tag[data-pid="${targetId}"]`);
+    if (!fromTag || !toTag) {
+        // Fallback: if I'm the target, just show a center splash
+        if (targetId === myClientId) showTomato(fromName);
+        return;
+    }
+    const r1 = fromTag.getBoundingClientRect();
+    const r2 = toTag.getBoundingClientRect();
+    const x1 = r1.left + r1.width / 2, y1 = r1.top + r1.height / 2;
+    const x2 = r2.left + r2.width / 2, y2 = r2.top + r2.height / 2;
+
+    const tomato = document.createElement('div');
+    tomato.textContent = '🍅';
+    tomato.style.cssText = `position:fixed;left:${x1}px;top:${y1}px;font-size:2.2rem;z-index:1200;transform:translate(-50%,-50%) rotate(0deg);pointer-events:none;transition:left 0.8s cubic-bezier(.4,0,.6,1),top 0.8s cubic-bezier(.4,0,.6,1),transform 0.8s ease-in;`;
+    document.body.appendChild(tomato);
+    // Force reflow so the transition triggers from the start position
+    void tomato.offsetWidth;
+    tomato.style.left = x2 + 'px';
+    tomato.style.top = y2 + 'px';
+    tomato.style.transform = 'translate(-50%,-50%) rotate(720deg)';
+
+    setTimeout(() => {
+        tomato.remove();
+        splashAt(x2, y2);
+        if (targetId === myClientId) {
+            const l = document.createElement('div');
+            l.className = 'urge-bubble';
+            l.innerHTML = `<span class="from">${fromName}</span>向你投掷了番茄！`;
+            document.body.appendChild(l);
+            setTimeout(() => l.remove(), 2200);
+        }
+    }, 800);
+}
+
+// Burst splash at a screen position
+function splashAt(x, y) {
+    const s = document.createElement('div');
+    s.textContent = '💥';
+    s.style.cssText = `position:fixed;left:${x}px;top:${y}px;font-size:3rem;z-index:1200;transform:translate(-50%,-50%) scale(0.3);pointer-events:none;transition:transform 0.3s ease-out,opacity 0.4s ease-out 0.2s;`;
+    document.body.appendChild(s);
+    requestAnimationFrame(() => {
+        s.style.transform = 'translate(-50%,-50%) scale(1.4)';
+        s.style.opacity = '0';
+    });
+    setTimeout(() => s.remove(), 700);
+}
+
+// Fallback center splash (when player tags can't be located)
+function showTomato(from) {
+    const t = document.createElement('div');
+    t.className = 'tomato-splash';
+    t.innerHTML = `<span class="tomato">🍅</span><div class="label">${from} 向你投掷了番茄！</div>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
 }
 
 if (pendingRoom) {
@@ -145,6 +237,7 @@ function renderPlayers(players) {
 
         const tag = document.createElement('div');
         tag.className = 'player-tag';
+        tag.dataset.pid = p.id;
         tag.style.setProperty('--player-color', pColor);
         if (!p.connected) tag.style.opacity = '0.5';
         if (p.is_host) tag.classList.add('is-host');
@@ -261,6 +354,14 @@ socket.on('spectator_prompt', (data) => {
     }
 });
 
+socket.on('urge', (data) => {
+    showUrgeBubble(data.from, data.text);
+});
+
+socket.on('throw_tomato', (data) => {
+    flyTomato(data.from_id, data.target_id, data.from);
+});
+
 socket.on('room_joined', (data) => {
     console.log('[GC] room_joined:', data.room_code);
     currentRoom = data.room_code;
@@ -342,6 +443,9 @@ socket.on('update_state', (data) => {
             document.getElementById('hint1-input').disabled = true;
             document.getElementById('hint2-input').disabled = true;
         }
+        // Fun buttons while waiting (submitted, or spectating with nothing to do)
+        document.getElementById('hint-actions').style.display =
+            (me && (me.has_hints || isSpectator)) ? 'flex' : 'none';
     }
     
     // GUESS PHASE
@@ -441,6 +545,8 @@ socket.on('update_state', (data) => {
             document.querySelectorAll('.guess-input').forEach(input => { input.disabled = true; });
             document.getElementById('center-guess-input').disabled = true;
         }
+        // Fun buttons while waiting for others to submit
+        document.getElementById('guess-actions').style.display = (me && me.has_guesses) ? 'flex' : 'none';
     }
     
     // RESULT PHASE
@@ -557,6 +663,59 @@ document.getElementById('btn-exit-room').addEventListener('click', () => {
     hideMessage();
     document.getElementById('player-name').value = myName;
     switchView('login');
+});
+
+// 催促按钮（出题/猜测阶段等待时出现，5 秒冷却）
+document.querySelectorAll('.btn-urge').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        const text = URGE_TEXTS[Math.floor(Math.random() * URGE_TEXTS.length)];
+        socket.emit('urge', { text });
+        btn.disabled = true;
+        let n = 5;
+        btn.textContent = `催促 (${n}s)`;
+        const tick = setInterval(() => {
+            n--;
+            if (n <= 0) {
+                clearInterval(tick);
+                btn.disabled = false;
+                btn.textContent = '催促';
+            } else {
+                btn.textContent = `催促 (${n}s)`;
+            }
+        }, 1000);
+    });
+});
+
+// 投掷番茄按钮 → 弹出目标选择
+document.querySelectorAll('.btn-throw').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const box = document.getElementById('throw-targets');
+        box.innerHTML = '';
+        const players = (gameState && gameState.players) || [];
+        // Only allow throwing at connected, non-self players
+        const targets = players.filter(p => p.connected && p.id !== myClientId);
+        if (targets.length === 0) {
+            box.innerHTML = '<p style="color: var(--text-light);">没有可投掷的玩家</p>';
+        } else {
+            targets.forEach(p => {
+                const b = document.createElement('button');
+                b.className = 'btn-secondary';
+                b.textContent = p.name + (p.is_spectator ? '（旁观者）' : '');
+                b.style.width = '100%';
+                b.addEventListener('click', () => {
+                    socket.emit('throw_tomato', { target_id: p.id });
+                    document.getElementById('throw-modal').style.display = 'none';
+                });
+                box.appendChild(b);
+            });
+        }
+        document.getElementById('throw-modal').style.display = 'flex';
+    });
+});
+
+document.getElementById('btn-throw-cancel').addEventListener('click', () => {
+    document.getElementById('throw-modal').style.display = 'none';
 });
 
 document.getElementById('btn-toggle-ready').addEventListener('click', () => {

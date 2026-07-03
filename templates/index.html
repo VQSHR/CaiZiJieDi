@@ -87,6 +87,10 @@
                     <p id="hint-wait-msg" style="display:none; margin-top: 10px;">已提交，等待他人...</p>
                 </div>
                 <p id="hint-spectator-msg" style="display:none; font-size: 1.2rem; color: var(--text-light);">正在等待玩家出题中…</p>
+                <div class="wait-actions" id="hint-actions" style="display:none;">
+                    <button class="btn-secondary btn-urge">催促</button>
+                    <button class="btn-secondary btn-throw">投掷番茄</button>
+                </div>
             </div>
 
             <!-- 猜测阶段 -->
@@ -103,6 +107,10 @@
                 </div>
                 <button id="btn-submit-guesses" class="btn-primary">提交猜测</button>
                 <p id="guess-wait-msg" style="display:none;">已提交，等待他人...</p>
+                <div class="wait-actions" id="guess-actions" style="display:none;">
+                    <button class="btn-secondary btn-urge">催促</button>
+                    <button class="btn-secondary btn-throw">投掷番茄</button>
+                </div>
             </div>
 
             <!-- 结算阶段 -->
@@ -122,7 +130,15 @@
 
         </div>
     </div>
-    
+
+    <div id="throw-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h4 style="margin-bottom: 12px;">选择投掷目标</h4>
+            <div id="throw-targets" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom: 1rem;"></div>
+            <button class="btn-secondary" id="btn-throw-cancel">取消</button>
+        </div>
+    </div>
+
     <script src="/static/js/main.js"></script>
 </body>
 </html>
