@@ -80,16 +80,19 @@ class Room:
         return True
 
     def remove_player(self, client_id):
-        """Immediately remove a player (explicit leave). Reassign host if needed."""
+        """Mark a player as left (ghost): keep their hidden word/hints/guesses for
+        the rest of the round, but mark disconnected and free the socket sid so the
+        live socket can be reused. Host is handed off if needed."""
         p = self.players.get(client_id)
         if not p:
             return False
-        was_host = p['is_host']
-        del self.players[client_id]
-        if was_host and self.players:
+        p['connected'] = False
+        p['sid'] = None
+        if p['is_host']:
             for other in self.players.values():
-                if other['connected']:
+                if other['client_id'] != client_id and other['connected']:
                     other['is_host'] = True
+                    p['is_host'] = False
                     break
         return True
 
@@ -167,6 +170,9 @@ class Room:
 
     def reset_lobby(self):
         self.state = 'LOBBY'
+        # Drop players who left/disconnected during the round (ghosts)
+        for cid in [c for c, p in self.players.items() if not p['connected']]:
+            del self.players[cid]
         for p in self.players.values():
             p['hidden_word'] = ''
             p['hints'] = ['', '']

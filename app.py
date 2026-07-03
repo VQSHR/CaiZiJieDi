@@ -24,17 +24,14 @@ def generate_room_code():
             return code
 
 
-def schedule_player_cleanup(room_code, client_id, delay=120):
-    """Remove a player that stayed disconnected past the grace period."""
+def schedule_room_cleanup(room_code, delay=120):
+    """Delete the room if it still has no connected players after a grace period."""
     def cleanup():
         socketio.sleep(delay)
         if room_code in rooms:
-            room = rooms[room_code]
-            if room.cleanup_player(client_id):
-                if not room.players:
-                    del rooms[room_code]
-                else:
-                    socketio.emit('update_state', room.get_public_state(), to=room_code)
+            connected = [p for p in rooms[room_code].players.values() if p['connected']]
+            if not connected:
+                del rooms[room_code]
     socketio.start_background_task(cleanup)
 
 
@@ -106,16 +103,14 @@ def on_disconnect():
     if not room_code or room_code not in rooms:
         return
     room = rooms[room_code]
-    client_id = room.disconnect_player(request.sid)
+    room.disconnect_player(request.sid)  # mark connected=False, keep data, reassign host
     leave_room(room_code)
-
-    if client_id:
-        # Keep the player around for a grace period to allow reconnect
-        schedule_player_cleanup(room_code, client_id)
-
     connected = [p for p in room.players.values() if p['connected']]
     if connected:
         emit('update_state', room.get_public_state(), to=room_code)
+    else:
+        # No one connected: keep the room briefly to allow reconnect, then clean up
+        schedule_room_cleanup(room_code)
 
 
 @socketio.on('exit_room')
@@ -126,12 +121,13 @@ def on_exit_room():
     room = rooms[room_code]
     p = room.get_player_by_sid(request.sid)
     if p:
-        room.remove_player(p['client_id'])
+        room.remove_player(p['client_id'])  # mark left (ghost), keep data for the round
     leave_room(room_code)
-    if not room.players:
-        del rooms[room_code]
-    else:
+    connected = [p for p in room.players.values() if p['connected']]
+    if connected:
         emit('update_state', room.get_public_state(), to=room_code)
+    else:
+        schedule_room_cleanup(room_code)
 
 
 @socketio.on('start_game')

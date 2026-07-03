@@ -134,14 +134,19 @@ function renderPlayers(players) {
         if (p.id === myClientId && p.is_host) amIHost = true;
 
         let statusTag = '';
-        const st = gameState && gameState.state;
-        if (st === 'LOBBY' && p.is_ready) statusTag = '<span style="color:#2D7D3F;">准备</span>';
-        else if (st === 'HINT_PHASE' && p.has_hints) statusTag = '<span style="color:#2D7D3F;">已提交</span>';
-        else if (st === 'GUESS_PHASE' && p.has_guesses) statusTag = '<span style="color:#2D7D3F;">已提交</span>';
+        if (!p.connected) {
+            statusTag = '<span style="color:#999;">已离开</span>';
+        } else {
+            const st = gameState && gameState.state;
+            if (st === 'LOBBY' && p.is_ready) statusTag = '<span style="color:#2D7D3F;">准备</span>';
+            else if (st === 'HINT_PHASE' && p.has_hints) statusTag = '<span style="color:#2D7D3F;">已提交</span>';
+            else if (st === 'GUESS_PHASE' && p.has_guesses) statusTag = '<span style="color:#2D7D3F;">已提交</span>';
+        }
 
         const tag = document.createElement('div');
         tag.className = 'player-tag';
         tag.style.setProperty('--player-color', pColor);
+        if (!p.connected) tag.style.opacity = '0.5';
         if (p.is_host) tag.classList.add('is-host');
         if (p.has_hints || p.has_guesses) tag.classList.add('ready');
         if (p.is_ready) tag.classList.add('is-ready');
