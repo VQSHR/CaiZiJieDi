@@ -17,8 +17,8 @@ words = content.split()
 char_map = defaultdict(set)
 
 for w in words:
-    # only consider 2-character words for simplicity
-    if len(w) == 2:
+    # only consider 2-character Chinese (CJK) words
+    if len(w) == 2 and all('\u4e00' <= c <= '\u9fff' for c in w):
         c1, c2 = w[0], w[1]
         char_map[c1].add(c2)
         char_map[c2].add(c1)
