@@ -263,6 +263,7 @@ button {
     --grid-color: var(--player-color, var(--ink));
     width: 100px;
     height: 100px;
+    flex-shrink: 0;
     border: 3px solid var(--grid-color);
     position: relative;
     display: inline-flex;
@@ -480,4 +481,104 @@ button {
 @keyframes tomatoBounce {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.3); }
+}
+
+/* ---- Mobile responsive ---- */
+@media (max-width: 600px) {
+    h1 { font-size: 2.2rem; }
+    h2 { font-size: 1.5rem; }
+
+    .glass-container {
+        padding: 1.2rem 0.8rem;
+        width: 98%;
+        border-radius: 2px;
+    }
+
+    .room-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.5rem;
+    }
+
+    .winner-banner {
+        font-size: 1.6rem;
+    }
+
+    .mi-zi-ge-wrapper,
+    .mi-zi-ge-wrapper[style] {
+        width: 44px !important;
+        height: 44px !important;
+    }
+
+    .mi-zi-ge-wrapper span,
+    .mi-zi-ge-wrapper input,
+    .mi-zi-ge-wrapper span[style],
+    .mi-zi-ge-wrapper input[style] {
+        font-size: 1.5rem !important;
+        line-height: 44px !important;
+    }
+
+    .mi-zi-ge-container {
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .result-two-col {
+        gap: 8px;
+    }
+
+    .player-tag {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.7rem;
+    }
+
+    .guess-row {
+        padding: 0.7rem;
+    }
+
+    .result-player-name {
+        font-size: 1.1rem !important;
+    }
+
+    .result-player-name .score {
+        font-size: 1rem;
+    }
+
+    button {
+        font-size: 1rem;
+        padding: 0.7rem 1rem;
+        letter-spacing: 1px;
+    }
+
+    .btn-icon {
+        font-size: 0.8rem;
+        padding: 0.15rem 0.5rem;
+    }
+
+    .wait-actions {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .modal-box {
+        padding: 1rem 1.2rem;
+    }
+
+    .urge-bubble {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .tomato-splash .tomato {
+        font-size: 5rem;
+    }
+
+    .tomato-splash .label {
+        font-size: 1.2rem;
+    }
 }
