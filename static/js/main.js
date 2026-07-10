@@ -416,6 +416,8 @@ socket.on('update_state', (data) => {
         myGuesses = {};
         myCenterGuess = '';
         document.getElementById('my-hidden-word').innerText = '';
+        // Clear old guess inputs from previous round
+        document.getElementById('guesses-container').innerHTML = '';
         // Reset inputs
         document.getElementById('hint1-input').value = '';
         document.getElementById('hint2-input').value = '';
